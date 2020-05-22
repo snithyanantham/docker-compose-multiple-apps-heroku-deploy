@@ -1,0 +1,25 @@
+name: 'Deploy Multiple Docker Images to Heroku Applications'
+author: 'Nithyanantham Subramaniam'
+description: 'A simple action to build multiple docker images using docker-compose, push and deploy your apps to Heroku Applications.'
+inputs:
+  email: 
+    description: 'Email linked to your Heroku account'
+    required: true
+  api_key:
+    description: 'Your Heroku API Key'
+    required: true
+  app_name:
+    description: 'Your Heroku App Name'
+    required: true
+  docker_compose_file:
+    description: 'docker-compose File Path'
+    required: true
+  heroku_apps: 
+    description: 'List of Docker Image name and Heroku app names with it's type'
+    required: true
+branding:
+  icon: package
+  color: blue
+runs:
+  using: 'node12'
+  main: 'dist/index.js'
