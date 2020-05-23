@@ -3,7 +3,7 @@
 
 # docker-compose-multiple-apps-heroku-deploy - GitHub Action
 
-A simple action to build multiple docker images using docker-compose, push and deploy your apps to Heroku Applications
+A simple action to build multiple docker images using docker-compose, push and deploy your applications to Heroku Apps
 
 
 ## How to use it
@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Build, Push and Deploy to Heroku #set the whatever name you want to this step
         id: heroku
-        uses: snithyanantham/docker-compose-multiple-apps-heroku-deploy@v1  # use the latest version of the action
+        uses: snithyanantham/docker-compose-multiple-apps-heroku-deploy@v1.0  # use the latest version of the action
         with:
           email: ${{ secrets.HEROKU_EMAIL }} # your heroku email
           api_key: ${{ secrets.HEROKU_API_KEY }} # your  heroku api key
