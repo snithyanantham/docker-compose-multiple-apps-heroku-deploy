@@ -15,7 +15,7 @@ inputs:
     description: 'docker-compose File Path'
     required: true
   heroku_apps: 
-    description: 'List of Docker Image name and Heroku app names with it's type'
+    description: 'List of Docker Image name and Heroku app names with type'
     required: true
 branding:
   icon: package
