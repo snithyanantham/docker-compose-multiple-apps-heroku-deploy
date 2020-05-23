@@ -1,6 +1,6 @@
-name: 'Deploy Multiple Docker Images to Heroku Applications'
+name: 'Deploy Multiple Docker Images to Heroku Apps'
 author: 'Nithyanantham Subramaniam'
-description: 'A simple action to build multiple docker images using docker-compose, push and deploy your apps to Heroku Applications.'
+description: 'A simple action to build multiple docker images using docker-compose, push and deploy your applications to Heroku Apps.'
 inputs:
   email: 
     description: 'Email linked to your Heroku account'
@@ -15,7 +15,7 @@ inputs:
     description: 'docker-compose File Path'
     required: true
   heroku_apps: 
-    description: 'List of Docker Image name and Heroku app names with type'
+    description: 'List of Docker Images generated from docker-compose and Heroku app names with type'
     required: true
 branding:
   icon: package
