@@ -4,7 +4,9 @@
   "description": "A simple action to build multiple docker images using docker-compose, push and deploy your apps to Heroku Applications",
   "main": "index.js",
   "scripts": {
-    "build": "npx @zeit/ncc build index.js"
+    "lint": "eslint index.js",
+    "build": "npx @zeit/ncc build index.js",
+    "test": "eslint app.js && jest"
   },
   "repository": {
     "type": "git",
@@ -27,5 +29,10 @@
   "homepage": "https://github.com/snithyanantham/docker-compose-multiple-apps-heroku-deploy#readme",
   "dependencies": {
     "@actions/core": "^1.2.4"
+  },
+  "devDependencies": {
+    "@zeit/ncc": "^0.22.3",
+    "eslint": "^7.1.0",
+    "jest": "^26.0.1"
   }
 }

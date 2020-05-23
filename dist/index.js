@@ -40,7 +40,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(75);
+/******/ 		return __webpack_require__(104);
 /******/ 	};
 /******/
 /******/ 	// run startup
@@ -49,104 +49,35 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
-/***/ 75:
-/***/ (function(__unusedmodule, __unusedexports, __webpack_require__) {
-
-const core = __webpack_require__(694);
-const { promisify } = __webpack_require__(669);
-
-const exec = promisify(__webpack_require__(129).exec);
-
-async function loginToHeroku() {
-    const login = core.getInput('email');
-    const password = core.getInput('api_key');
-
-    try {
-        await exec(`cat >~/.netrc <<EOF
-        machine api.heroku.com
-            login ${login}
-            password ${password}
-        EOF`);
-        console.log('.netrc file create ✅');
-
-        await exec(`echo ${password} | docker login --username=${login} registry.heroku.com --password-stdin`);
-        console.log('Logged in succefully ✅');
-    } catch (error) {
-        core.setFailed(`Authentication process faild. Error: ${error.message}`);
-    }
-}
-
-async function getImageAppNameList(heroku_apps) {
-    try {
-        return JSON.parse(heroku_apps);
-    } catch (error) {
-        core.setFailed(`Invalid input for heroku app. Error: ${error.message}`);
-    }
-}
-
-async function buildDockerCompose() {
-    const dockerComposeFilePath = core.getInput('docker_compose_file');
-
-    try {
-        await exec(`docker-compose -f ${dockerComposeFilePath} build`);
-    } catch (error) {
-        core.setFailed(`Somthing went wrong building your image. Error: ${error.message}`);
-    }
-}
-
-const asyncForEach = async (array, callback) => {
-    for (let index = 0; index < array.length; index++) {
-      await callback(array[index], index, array)
-    }
-  }
-
-async function pushAndDeployAllImages() {
-
-    const imageListString = core.getInput('heroku_apps');
-
-    try {
-        var imageList = getImageAppNameList(imageListString);
-
-        if(imageList.length > 0)
-        {
-        await asyncForEach(imageList, async (item) => {
-
-            await exec(`docker tag ${item.imagename} registry.heroku.com/${item.appname}/${item.apptype}`);
-            console.log('Container tagged for image - ' + item.imagename);
-            await exec(`docker push registry.heroku.com/${item.appname}/web`);
-            console.log('Container pushed for image - ' + item.imagename);
-            await exec(`heroku container:release ${item.apptype} --app ${item.appname}`);
-            console.log('Container deployed for image - ' + item.imagename);
-
-          });
-
-        console.log('Image built ✅');
-        console.log('App Deployed successfully ✅');
-    }else{
-        core.setFailed(`No image given to process.`);
-    }
-
-    } catch (error) {
-        core.setFailed(`Somthing went wrong building your image. Error: ${error.message}`);
-    }
-}
-
-try {
-    loginToHeroku();
-    buildDockerCompose();
-    pushAndDeployAllImages();
-} catch (error) {
-    console.log({ message: error.message });
-    core.setFailed(error.message);
-}
-
-
-/***/ }),
-
 /***/ 87:
 /***/ (function(module) {
 
 module.exports = require("os");
+
+/***/ }),
+
+/***/ 104:
+/***/ (function(__unusedmodule, __unusedexports, __webpack_require__) {
+
+const core = __webpack_require__(470);
+const app = __webpack_require__(964);
+
+async function run() {
+    try {
+        const login = core.getInput('email');
+        const password = core.getInput('api_key');
+        const imageListString = core.getInput('heroku_apps');
+        const dockerComposeFilePath = core.getInput('docker_compose_file');
+
+        await app.buildAndDeploy(login, password, dockerComposeFilePath, imageListString);
+    }
+    catch (error) {
+        console.log({ message: error.message });
+        core.setFailed(error.message);
+    }
+}
+
+run()
 
 /***/ }),
 
@@ -157,21 +88,106 @@ module.exports = require("child_process");
 
 /***/ }),
 
-/***/ 622:
-/***/ (function(module) {
+/***/ 431:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
 
-module.exports = require("path");
+"use strict";
+
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const os = __importStar(__webpack_require__(87));
+/**
+ * Commands
+ *
+ * Command Format:
+ *   ::name key=value,key=value::message
+ *
+ * Examples:
+ *   ::warning::This is the message
+ *   ::set-env name=MY_VAR::some value
+ */
+function issueCommand(command, properties, message) {
+    const cmd = new Command(command, properties, message);
+    process.stdout.write(cmd.toString() + os.EOL);
+}
+exports.issueCommand = issueCommand;
+function issue(name, message = '') {
+    issueCommand(name, {}, message);
+}
+exports.issue = issue;
+const CMD_STRING = '::';
+class Command {
+    constructor(command, properties, message) {
+        if (!command) {
+            command = 'missing.command';
+        }
+        this.command = command;
+        this.properties = properties;
+        this.message = message;
+    }
+    toString() {
+        let cmdStr = CMD_STRING + this.command;
+        if (this.properties && Object.keys(this.properties).length > 0) {
+            cmdStr += ' ';
+            let first = true;
+            for (const key in this.properties) {
+                if (this.properties.hasOwnProperty(key)) {
+                    const val = this.properties[key];
+                    if (val) {
+                        if (first) {
+                            first = false;
+                        }
+                        else {
+                            cmdStr += ',';
+                        }
+                        cmdStr += `${key}=${escapeProperty(val)}`;
+                    }
+                }
+            }
+        }
+        cmdStr += `${CMD_STRING}${escapeData(this.message)}`;
+        return cmdStr;
+    }
+}
+/**
+ * Sanitizes an input into a string so it can be passed into issueCommand safely
+ * @param input input to sanitize into a string
+ */
+function toCommandValue(input) {
+    if (input === null || input === undefined) {
+        return '';
+    }
+    else if (typeof input === 'string' || input instanceof String) {
+        return input;
+    }
+    return JSON.stringify(input);
+}
+exports.toCommandValue = toCommandValue;
+function escapeData(s) {
+    return toCommandValue(s)
+        .replace(/%/g, '%25')
+        .replace(/\r/g, '%0D')
+        .replace(/\n/g, '%0A');
+}
+function escapeProperty(s) {
+    return toCommandValue(s)
+        .replace(/%/g, '%25')
+        .replace(/\r/g, '%0D')
+        .replace(/\n/g, '%0A')
+        .replace(/:/g, '%3A')
+        .replace(/,/g, '%2C');
+}
+//# sourceMappingURL=command.js.map
 
 /***/ }),
 
-/***/ 669:
-/***/ (function(module) {
-
-module.exports = require("util");
-
-/***/ }),
-
-/***/ 694:
+/***/ 470:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
@@ -193,7 +209,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const command_1 = __webpack_require__(761);
+const command_1 = __webpack_require__(431);
 const os = __importStar(__webpack_require__(87));
 const path = __importStar(__webpack_require__(622));
 /**
@@ -400,102 +416,110 @@ exports.getState = getState;
 
 /***/ }),
 
-/***/ 761:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
+/***/ 622:
+/***/ (function(module) {
 
-"use strict";
+module.exports = require("path");
 
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const os = __importStar(__webpack_require__(87));
-/**
- * Commands
- *
- * Command Format:
- *   ::name key=value,key=value::message
- *
- * Examples:
- *   ::warning::This is the message
- *   ::set-env name=MY_VAR::some value
- */
-function issueCommand(command, properties, message) {
-    const cmd = new Command(command, properties, message);
-    process.stdout.write(cmd.toString() + os.EOL);
+/***/ }),
+
+/***/ 669:
+/***/ (function(module) {
+
+module.exports = require("util");
+
+/***/ }),
+
+/***/ 964:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+const core = __webpack_require__(470);
+const { promisify } = __webpack_require__(669);
+
+const exec = promisify(__webpack_require__(129).exec);
+
+const asyncForEach = async (array, callback) => {
+    for (let index = 0; index < array.length; index++) {
+        await callback(array[index], index, array)
+    }
 }
-exports.issueCommand = issueCommand;
-function issue(name, message = '') {
-    issueCommand(name, {}, message);
+
+let loginToHeroku = async function loginToHeroku(login, password) {
+    try {
+
+        await exec(`cat >~/.netrc <<EOF
+        machine api.heroku.com
+            login ${login}
+            password ${password}
+        EOF`);
+
+        console.log('.netrc file create ✅');
+
+        await exec(`echo ${password} | docker login --username=${login} registry.heroku.com --password-stdin`);
+
+        console.log('Logged in succefully ✅');
+    }
+    catch (error) {
+        core.setFailed(`Authentication process faild. Error: ${error.message}`);
+    }
 }
-exports.issue = issue;
-const CMD_STRING = '::';
-class Command {
-    constructor(command, properties, message) {
-        if (!command) {
-            command = 'missing.command';
+
+let getImageAppNameList = async function getImageAppNameList(heroku_apps) {
+    try {
+        return JSON.parse(heroku_apps);
+    }
+    catch (error) {
+        core.setFailed(`Invalid input for heroku app. Error: ${error.message}`);
+    }
+}
+
+let buildDockerCompose = async function buildDockerCompose(dockerComposeFilePath) {
+    try {
+        console.log('docker image build started.');
+        await exec(`docker-compose -f ${dockerComposeFilePath} build`);
+        console.log('docker image build finished.');
+    }
+    catch (error) {
+        core.setFailed(`Somthing went wrong building your image. Error: ${error.message}`);
+    }
+}
+
+let pushAndDeployAllImages = async function pushAndDeployAllImages(imageList) {
+    try {
+        if (imageList.length > 0) {
+            await asyncForEach(imageList, async (item) => {
+                console.log('Processing image -' + item.imagename);
+                await exec(`docker tag ${item.imagename} registry.heroku.com/${item.appname}/${item.apptype}`);
+                console.log('Container tagged for image - ' + item.imagename);
+                await exec(`docker push registry.heroku.com/${item.appname}/web`);
+                console.log('Container pushed for image - ' + item.imagename);
+                await exec(`heroku container:release ${item.apptype} --app ${item.appname}`);
+                console.log('Container deployed for image - ' + item.imagename);
+            });
+            console.log('App Deployed successfully ✅');
+        } else {
+            core.setFailed(`No image given to process.`);
         }
-        this.command = command;
-        this.properties = properties;
-        this.message = message;
     }
-    toString() {
-        let cmdStr = CMD_STRING + this.command;
-        if (this.properties && Object.keys(this.properties).length > 0) {
-            cmdStr += ' ';
-            let first = true;
-            for (const key in this.properties) {
-                if (this.properties.hasOwnProperty(key)) {
-                    const val = this.properties[key];
-                    if (val) {
-                        if (first) {
-                            first = false;
-                        }
-                        else {
-                            cmdStr += ',';
-                        }
-                        cmdStr += `${key}=${escapeProperty(val)}`;
-                    }
-                }
-            }
-        }
-        cmdStr += `${CMD_STRING}${escapeData(this.message)}`;
-        return cmdStr;
+    catch (error) {
+        core.setFailed(`Somthing went wrong while pushing and deploying your image. Error: ${error.message}`);
     }
 }
-/**
- * Sanitizes an input into a string so it can be passed into issueCommand safely
- * @param input input to sanitize into a string
- */
-function toCommandValue(input) {
-    if (input === null || input === undefined) {
-        return '';
-    }
-    else if (typeof input === 'string' || input instanceof String) {
-        return input;
-    }
-    return JSON.stringify(input);
+
+let buildAndDeploy = async function buildAndDeploy(login, password, dockerComposeFilePath, imageListString)
+{
+        await loginToHeroku(login, password);
+        await buildDockerCompose(dockerComposeFilePath);
+        const imageList = await getImageAppNameList(imageListString);
+        await pushAndDeployAllImages(imageList);
 }
-exports.toCommandValue = toCommandValue;
-function escapeData(s) {
-    return toCommandValue(s)
-        .replace(/%/g, '%25')
-        .replace(/\r/g, '%0D')
-        .replace(/\n/g, '%0A');
-}
-function escapeProperty(s) {
-    return toCommandValue(s)
-        .replace(/%/g, '%25')
-        .replace(/\r/g, '%0D')
-        .replace(/\n/g, '%0A')
-        .replace(/:/g, '%3A')
-        .replace(/,/g, '%2C');
-}
-//# sourceMappingURL=command.js.map
+
+module.exports.loginToHeroku = loginToHeroku;
+module.exports.getImageAppNameList = getImageAppNameList;
+module.exports.buildDockerCompose = buildDockerCompose;
+module.exports.pushAndDeployAllImages = pushAndDeployAllImages;
+module.exports.buildAndDeploy = buildAndDeploy;
+
 
 /***/ })
 
