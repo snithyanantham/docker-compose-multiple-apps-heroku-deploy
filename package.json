@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint index.js",
     "build": "npx @zeit/ncc build index.js",
-    "test": "eslint app.js && jest"
+    "test": "eslint index.js && jest"
   },
   "repository": {
     "type": "git",
